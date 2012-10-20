@@ -1,0 +1,74 @@
+<html>
+<head>
+  <script src="http://localhost:5000/socket.io/socket.io.js"></script>
+  <script>
+    var socket = io.connect('http://localhost:5000');
+    socket.on('kinect', function (data) {
+      renderBody(data);
+    });
+  </script>
+  <script type="application/javascript">
+
+    function renderBody(b) {
+      var canvas = document.getElementById("canvas");
+      canvas.width = canvas.width + 1;
+      canvas.width = canvas.width - 1;
+
+      if (canvas.getContext)
+        {
+
+          var connections = [
+            ["neck","rightShoulder"],
+            ["rightShoulder","rightElbow"],
+            ["rightElbow","rightHand"],
+            ["neck","leftShoulder"],
+            ["leftShoulder","leftElbow"],
+            ["leftElbow","leftHand"],
+            ["neck","torso"],
+            ["torso","rightHip"],
+            ["rightHip","rightKnee"],
+            ["rightKnee","rightFoot"],
+            ["torso","leftHip"],
+            ["leftHip","leftKnee"],
+            ["leftKnee","leftFoot"],
+            ["head","neck"]
+          ];
+
+          var correction = -1;
+
+          for(var i in connections) {
+
+            var element = canvas.getContext("2d")
+                element.lineWidth = 32.0;
+                element.lineCap = "round";
+
+            var pos1_x = ((b[connections[i][1]].x+1000)/2),
+                pos1_y = (1000-(b[connections[i][1]].y))/2,
+                pos2_x = ((b[connections[i][0]].x+1000)/2),
+                pos2_y =(1000-(b[connections[i][0]].y))/2
+
+            element.moveTo(pos1_x,pos1_y);
+            element.lineTo(pos2_x,pos2_y);
+            element.stroke();
+
+            if(connections[i][0] === 'head') {
+              var limbLength = Math.sqrt((Math.pow((b[connections[i][0]].x)-(b[connections[i][1]].x), 2) + Math.pow((b[connections[i][0]].y)-(b[connections[i][1]].y), 2)));
+              var img=new Image();
+              img.src='img/' + connections[i][0] + '-' + connections[i][1] + '.png';
+              console.log(img.height)
+              element.drawImage(img,
+                pos2_x-(img.width/2),
+                pos2_y-(img.height/2),
+                img.width*(1/img.height*limbLength),
+                limbLength);
+            }
+          }
+
+       }
+     }
+
+  </script>
+</head>
+<canvas id="canvas" width="1000" height="1000"></canvas><br>
+</body>
+</html>

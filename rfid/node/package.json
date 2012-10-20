@@ -1,0 +1,12 @@
+{
+  "name": "node-rfid-parisweb2012",
+  "version": "0.0.1",
+  "author": "Jonathan Blanchet",
+  "dependencies": {
+    "node-hid": "~0.1.1",
+    "socket.io": "~0.9.10"
+  },
+  "engines": {
+    "node": ">=0.8"
+  }
+}

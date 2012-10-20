@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>reveal.js - The HTML Presentation Framework</title>
+
+		<meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+		<meta name="author" content="Hakim El Hattab">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<link href='http://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+
+		<link rel="stylesheet" href="css/reveal.css">
+        <link rel="stylesheet" href="css/theme/default.css" id="theme">
+		<link rel="stylesheet" href="css/parisWeb.css">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+
+				<section>
+					<h1>Le Web fait du hors piste</h1>
+					<h3>Atelier Paris Web 2012</h3>
+				</section>
+
+				<section>
+					<h2>Au programme</h2>
+					<ul>
+                        <li>Lire des puces RFID avec NodeJS</li>
+                        <li>utiliser votre manette de jeu Xbox et PlayStation dans votre navigateur avec la GamePad API</li>
+                        <li>créer de nouvelles interactions / interfaces avec la Kinect et NodeJS</li>
+                        <li>contrôler des moteurs, faire de la domotique avec Arduino et JavaScript</li>
+                        <li>Visioconférence / P2P</li>
+                        <li>Google Chrome Packaged Apps (serial, servo, usb...)</li>
+					</ul>
+
+					<aside class="notes"></aside>
+				</section>
+
+                <!-- START RFID -->
+                <section>
+                    <h2>lecteur RFID</h2>
+                    <p>
+                        Inspiré par @mauriz : <a href="http://svay.com/blog/hacking-rfid-with-nodejs/">Hacking RFID with NodeJS</a>
+                    </p>
+
+                    <p>Nécessite les modules "socket.io" et "node-hid"</p>
+                </section>
+
+				<section>
+					<h2>Côté Node</h2>
+					<pre><code>var HID = require('HID');
+var io = require('socket.io').listen(5000);
+
+var socket;
+var devices = new HID.devices(7592, 4865);
+var hid;
+
+if (!devices.length) {
+  console.log("No mir:ror found");
+} else {
+  hid = new HID.HID(devices[0].path);
+  console.log('mir:ror found');
+  io.sockets.on('connection', listen);
+}
+
+function listen (_socket) {
+    socket = _socket;
+    hid.read(onRead);
+}
+
+function onRead(error, data) {
+  var size, id, dataType, color;
+
+  //get 64 bytes
+  if (data[0] != 0) {
+
+    switch (data[0]) {
+    case 1:
+      //Orientation change
+      switch (data[1]) {
+      case 4:
+        socket.emit('mir:ror-up');
+        console.log("-> mir:ror up");
+        break;
+      case 5:
+        socket.emit('mir:ror-down');
+        console.log("-> mir:ror down");
+        break;
+      }
+      break;
+    case 2:
+      //RFID
+      size = data[4];
+      dataType = data[1];
+      id = data.splice(5, size);
+
+      switch(id[id.length-1]]){
+        case 137:
+            color = 'yellow';
+            break;
+        case 217:
+            color = 'purple';
+            break;
+      }
+
+      switch (dataType) {
+      case 1:
+        socket.emit('RFID-in', color);
+        console.log("-> RFID in", color);
+        break;
+      case 2:
+        socket.emit('RFID-out', color);
+        console.log("-> RFID out", color);
+        break;
+      }
+
+      break;
+    }
+  }
+  hid.read(onRead);
+}
+
+					</code></pre>
+					<p>
+                        Plus d'informations sur le protocole sur <a href="http://svay.com/blog/hacking-rfid-with-nodejs/" title="">svay.com</a> et <a href="http://blog.nomzit.com/2010/01/30/decoding-the-mirror-comms-protocol/" title="">blog.nomzit.com</a>
+                    </p>
+				</section>
+                <section>
+                    <h2>Côté Client</h2>
+                    <pre><code>$(function () {
+    var socket = io.connect('http://localhost:5000');
+    socket.on('RFID-in', function (color) {
+        document.documentElement.classList.add(color);
+    });
+    socket.on('RFID-out', function (color) {
+        document.documentElement.classList.remove(color);
+    });
+})
+                        </code></pre>
+
+                </section>
+
+                <section id="rfid">
+                    <h2>Demo</h2>
+                    <aside class="notes">
+                        Start server in parisWeb2012/rfid/node/index.js
+                        Plug the Mir:ror
+                        Play
+                    </aside>
+                </section>
+                <!-- END RFID -->
+
+                <!-- Gamepad API -->
+                <section>
+                    <h2>Gamepad API</h2>
+                    <img src="http://1-ps.googleusercontent.com/x/s.html5rocks-hrd.appspot.com/www.html5rocks.com/en/tutorials/doodles/gamepad/xgamepads.jpg.pagespeed.ic.g008LQngNH.jpg">
+                    <aside class="notes">
+                        Plug the gamepad !
+                    </aside>
+
+                </section>
+
+                <section>
+                    <h2>Detecter le support</h2>
+                    <p>
+                        <pre><code>var getField = function() {
+     return navigator.webkitGamepads ||
+            navigator.mozGamepads ||
+            navigator.gamepads;
+ };
+
+var getFunction = function () {
+  return navigator.webkitGetGamepads ||
+         navigator.mozGetGamepads ||
+         navigator.getGamepads;
+};
+
+var gamepadSupport =
+        (getField() != undefined) ||
+        (getFunction() != undefined);
+                        </code></pre>
+                    </p>
+                    <aside class="notes">
+                        Plug the gamepad !
+                    </aside>
+
+                </section>
+
+                <section>
+                    Ou avec ModernizR
+                    <pre><code>var gamepadSupportAvailable = Modernizr.gamepads;
+                    </code></pre>
+                </section>
+
+                <section>
+                    <iframe width="100%" height="100%" src="http://www.html5rocks.com/en/tutorials/doodles/gamepad/gamepad-tester/tester.html"></iframe>
+                </section>
+
+                <section>
+                    <h2>Demo</h2>
+                    <p>
+                        <a target="_blank" href="http://localhost:4001" title="Demo"><img src="http://hexgl.bkcore.com/thumbs/hexmki.png" alt=""></a>
+                    </p>
+                    <p>
+                        Basée sur l'excellent <a href="http://hexgl.bkcore.com/" title="">HexGL</a>
+                    </p>
+                     <aside class="notes">
+                        Start the demo :
+                        cd gamepad/hexgl/
+                        serve 4001
+                    </aside>
+                </section>
+
+                <section>
+                    <p>Code ajouté à la démo de HexGL</p>
+                    <p>Avec l'aide de <a href="http://www.gamepadjs.com/" title="">GamepadJS</a>
+</p>
+                    <pre><code>function checkState(){
+    var pads = Gamepad.getStates();
+    for (var i = 0; i &lt; pads.length; +i) {
+        if (pads[i]) {
+            if(pads[i].leftStickX &lt; -0.75)
+                self.key.left = true;
+            if(pads[i].leftStickX &gt; 0.5)
+                self.key.right = true;
+            if(pads[i].faceButton0 &gt; 05)
+                self.key.forward = true;
+            if(pads[i].faceButton1 &gt; 05)
+                self.key.backward = true;
+            if(pads[i].leftShoulder0 &gt; 0.75)
+                self.key.ltrigger = true;
+            if(pads[i].rightShoulder0 &gt; 0.75)
+                self.key.rtrigger = true;
+
+            if(pads[i].leftStickX &gt; -0.75)
+                self.key.left = false;
+            if(pads[i].leftStickX &lt; 0.5)
+                self.key.right = false;
+            if(pads[i].faceButton0 &lt; 05)
+                self.key.forward = false;
+            if(pads[i].faceButton1 &lt; 05)
+                self.key.backward = false;
+            if(pads[i].leftShoulder0  &lt; 0.75)
+                self.key.ltrigger = false;
+            if(pads[i].rightShoulder0 &lt; 0.75)
+                self.key.rtrigger = false;
+        }
+    }
+    requestAnimationFrame(checkState);
+}
+
+checkState();
+                    </code></pre>
+                    <p>
+                        C'est tout :)
+                    </p>
+                </section>
+                <!-- END Gamepad API -->
+
+                <!-- Kinect -->
+                <section>
+                    <h2>Kinect</h2>
+                    <p>
+                        Plusieurs possibilités existent déjà :
+                        <ul>
+                            <li><a href="http://kinesis.io/">Kinesis.io</a></li>
+                            <li><a href="http://zigfu.com/">Zigfu</a></li>
+                            <li><a href="https://github.com/doug/depthjs">DephJS</a></li>
+                        </ul>
+                    </p>
+                </section>
+
+                <section>
+                    <h2>Kinect</h2>
+                    <p>
+                        Avec toutes leurs défauts :
+                        <ul>
+                            <li>Kinesis ne fournit pas de SDK ailleurs que sous Windows</li>
+                            <li>ZigFu utilise un plugin propriétaire</li>
+                            <li>DepthJS semble abandoné</li>
+                        </ul>
+                    </p>
+
+                    <p>Mais...</p>
+
+                </section>
+
+                <section>
+                    <h2>Kinect</h2>
+                    <p>
+                        Autre possibilité : <br>
+                        Processing + SimpleOpenNI + Node + Socket.IO
+                    </p>
+                    <p>Que des outils libres et gratuits ! </p>
+                    <p>Reste à faire la plomberie !</p>
+                </section>
+
+                <section>
+                    <h2>Côté Processing / SimpleOpenNI</h2>
+
+                    <pre><code>kinect.getJointPositionSkeleton(userId, kinect.SKEL_HEAD, head);
+kinect.getJointPositionSkeleton(userId, kinect.SKEL_NECK, neck);
+kinect.getJointPositionSkeleton(userId, kinect.SKEL_RIGHT_SHOULDER, rightShoulder);
+//...
+c = new Client(p, "127.0.0.1", 1337);
+Skeletor toSend = (Skeletor)queue.get(0);
+c.write(toSend.toJson());
+c.write('\n');
+</code></pre>
+
+                </section>
+
+                <section>
+                    <h2>Côté Node</h2>
+
+                    <pre><code>var net = require('net');
+var http = require('http');
+var io = require('socket.io').listen(5000);
+
+var gsock;
+
+var server = net.createServer(function (socket) {
+  console.log("processing connected");
+  socket.pipe(socket);
+  gsock = socket;
+
+  var message = "";
+
+  socket.on("data", function(chunk) {
+    message += chunk;
+
+    var newlineIndex = message.indexOf('\n');
+    if (newlineIndex !== -1) {
+        var json = message.slice(0, newlineIndex);
+        gsock.emit("json", json);
+        message = message.slice(newlineIndex + 1);
+    }
+  });
+
+  gsock.on("json", function(data) {
+    try {
+      json = JSON.parse(data);
+      io.sockets.emit('kinect', json);
+    } catch (Err) {
+      console.log("skipping: " + Err);
+      return; // continue
+    }
+  });
+
+
+});
+server.listen(1337, "127.0.0.1");
+
+io.sockets.on('connection', function (socket) {
+  console.log("browser connected");
+});
+</code></pre>
+
+                </section>
+
+                <section>
+                    <h2>Côté Client</h2>
+                    <pre><code>var socket = io.connect('http://localhost:5000');
+socket.on('kinect', function (data) {
+  renderBody(data);
+});
+function renderBody(b) {
+  var canvas = document.getElementById("canvas");
+
+  if (canvas.getContext)
+    {
+
+      var connections = [
+        ["neck","rightShoulder"],
+        ["rightShoulder","rightElbow"],
+        ["rightElbow","rightHand"],
+        ["neck","leftShoulder"],
+        ["leftShoulder","leftElbow"],
+        ["leftElbow","leftHand"],
+        ["neck","torso"],
+        ["torso","rightHip"],
+        ["rightHip","rightKnee"],
+        ["rightKnee","rightFoot"],
+        ["torso","leftHip"],
+        ["leftHip","leftKnee"],
+        ["leftKnee","leftFoot"],
+        ["head","neck"]
+      ];
+
+      for(var i in connections) {
+
+        var element = canvas.getContext("2d")
+            element.lineWidth = 32.0;
+            element.lineCap = "round";
+
+        var pos1_x = ((b[connections[i][1]].x+1000)/2),
+            pos1_y = (1000-(b[connections[i][1]].y))/2,
+            pos2_x = ((b[connections[i][0]].x+1000)/2),
+            pos2_y =(1000-(b[connections[i][0]].y))/2
+
+        element.moveTo(pos1_x,pos1_y);
+        element.lineTo(pos2_x,pos2_y);
+        element.stroke();
+
+        if(connections[i][0] === 'head') {
+          var limbLength = Math.sqrt((Math.pow((b[connections[i][0]].x)-(b[connections[i][1]].x), 2) + Math.pow((b[connections[i][0]].y)-(b[connections[i][1]].y), 2)));
+          var img=new Image();
+          img.src='img/' + connections[i][0] + '-' + connections[i][1] + '.png';
+          console.log(img.height)
+          element.drawImage(img,
+            pos2_x-(img.width/2),
+            pos2_y-(img.height/2),
+            img.width*(1/img.height*limbLength),
+            limbLength);
+        }
+      }
+
+   }
+ }
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>Démo</h2>
+                    <p>
+                        <a href="http://localhost:4002/Skeleton.html" target="_blank" title="Démo Kinect">
+                            <img src="/img/Awesome.png" alt="awesome face">
+                        </a>
+
+                        <aside class="notes">
+                            Brancher la Kinect <br>
+                            lancer le serveur Node : <br>
+                            cd processingKinect/<br>
+                            node app.js<br>
+
+                            Lancer le serveur Web <br>
+                            cd processingKinect/skelestreamer<br>
+                            serve 4002
+
+                            Lancer Processing <br>
+                            Charger et lancer skelestreamer
+                        </aside>
+                    </p>
+                </section>
+                <!-- Arduino -->
+                <section>
+                    <h2>Arduino</h2>
+                    <p>
+                        <img src="/img/ArduinoUNO_Front.jpeg" alt="">
+                    </p>
+                </section>
+
+                <section>
+                    <h2>Arduino</h2>
+                    <p>
+                        <img src="/img/ArduinoUNO_Front2.png" alt="">
+                    </p>
+                </section>
+
+                <section>
+                    <h2>Arduino</h2>
+                    <p>
+                        Mais jusqu'à récemment il fallait coder un peu de C.
+                        <img src="/img/arduino_c.png" alt="">
+                    </p>
+                </section>
+
+                <section>
+                    <h2>Firmata</h2>
+                    <blockquote>
+                        Firmata a generic protocol for communicating with microcontrollers like the Arduino from software on a host computer.
+                    </blockquote>
+                </section>
+
+                <section>
+                    <h2>Firmata</h2>
+                    <p>Des librairies existent pour dialoguer en Python, en Ruby...</p>
+                </section>
+
+                <section>
+                    <h2>Firmata</h2>
+                    <p>
+                        Et en Javascript !
+                    </p>
+
+                    <pre><code>npm install -g firmata</code></pre>
+
+                    <pre><code>var firmata = require('firmata');
+var board = new firmata.Board('path to usb',function(){
+  //arduino is ready to communicate
+});</code></pre>
+                </section>
+
+                <section>
+                    <h2>Serial Port</h2>
+                    <blockquote cite="https://github.com/voodootikigod/node-serialport">
+                        It provides a very simple interface to the low level serial port code necessary to program Arduino chipsets, X10 wireless communications, or even the rising Z-Wave and Zigbee standards.
+                    </blockquote>
+                    <a href="https://github.com/voodootikigod/node-serialport" title="">Le projet sur Github</a>
+                </section>
+
+                <section>
+                    <h2>Johnny Five</h2>
+                    <p>Firmata + Serial Port</p>
+                    <img src="/img/johnny-five.png" alt="">
+                </section>
+
+                <section>
+                    <h2>Johnny Five</h2>
+                    <pre><code>npm install johnny-five</code></pre>
+                    <br>
+                    <pre><code>var five = require("johnny-five"),
+    board = new five.Board();
+
+board.on("ready", function() {
+  // Create an Led on pin 13 and strobe it on/off
+  (new five.Led(13)).strobe();
+});</code></pre>
+                </section>
+
+                <section>
+                    <h2>Dialoguer avec le web</h2><br>
+                    <h2>Démos</h2>
+                </section>
+
+                <section>
+                    <h2>Dialoguer avec le web</h2>
+                    <p>Dans un sens : Arduino ➽ Web</p>
+                    <a href="http://localhost:4005" target="_blank" title=""><img src="/img/arduino_pot.png" alt=""></a>
+                    <aside class="notes">
+                        Brancher Arduino et potar
+                        Aller dans arduino/potentiometer/ <br>
+                        serve 4005 <br>
+                        puis node arduino/potentiometer.js
+                    </aside>
+                </section>
+
+                <section>
+                    <h2>Dialoguer avec le web</h2>
+                    <p>Dans un sens : Arduino ➽ Web</p>
+                    <pre><code>var five = require('johnny-five'),
+    io = require('socket.io').listen(8080),
+    board, potentiometer;
+
+board = new five.Board();
+
+board.on("ready", function() {
+
+  potentiometer = new five.Sensor({
+    pin: "A0"
+  });
+
+  // "read" get the current reading from the potentiometer
+  potentiometer.on("read", function( err, value ) {
+    board.emit('value', this.normalized);
+  });
+});
+
+
+io.sockets.on('connection', function (socket) {
+  board.on('value', function(val){
+      socket.emit('value', {val: val});
+  });
+});</code></pre>
+                    <aside class="notes">
+                        Débrancher Arduino
+                    </aside>
+
+                </section>
+
+
+                <section>
+                    <h2>Web ➽ Arduino</h2>
+                    <p>Démo</p>
+                    <img src="/img/ExampleCircuit_bb.png" alt="">
+                    <aside class="notes">
+                        Brancher Arduino et la Led sur le pin 8 <br>
+                        Aller dans arduino <br>
+                        node led.js <br>
+                    </aside>
+                </section>
+
+
+                <section>
+                    <h2>Web ➽ Arduino</h2>
+                    <pre><code>var twitter = require('ntwitter'),
+    config = require('./config').config,
+    five = require("johnny-five"),
+    board = new five.Board();
+
+var twit = new twitter(config.twitter);
+
+twit.stream(
+    'statuses/filter',
+    {'track': 'paris'},
+    function(stream) {
+        stream.on('data', function (data) {
+            board.emit('tweet');
+        });
+    });
+
+board.on("ready", function() {
+    var led = (new five.Led(8));
+
+    board.on('tweet', function(){
+        if(led.value) return ;
+        led.on();
+        setTimeout(function () {
+            led.off();
+        }, 1000);
+    });
+});</code></pre>
+                </section>
+
+
+                <section>
+                    <h2>Démo</h2>
+                    <a href="http://localhost:4006" target="_blank"><img src="/img/sweep_BB.png" alt=""></a>
+                    <aside class="notes">
+                        Brancher le servo ( 5V, GND et Pin 8)
+                        Aller dans arduino/servo
+                        serve 4006
+                        puis node arduino/servo.js
+                    </aside>
+                </section>
+
+
+
+                <section>
+                    <h2>Dialoguer avec le web</h2>
+                    <p>ou dans l'autre : Web -> Arduino</p>
+                    <pre><code>var five = require('johnny-five'),
+    board, servo, socket,
+    io = require('socket.io').listen(8081);
+
+io.sockets.on('connection', function (socket) {
+    socket.on('move', function(options){
+        servo.move(options.val);
+    });
+});
+
+board = new five.Board();
+
+board.on("ready", function() {
+  servo = new five.Servo({
+        pin: 8
+  });
+});</code></pre>
+                </section>
+
+
+
+                <section>
+                    Les possibilités sont infinies
+                </section>
+
+                <section>
+                    <h2>Johnny Five LED display</h2>
+                    <iframe src="http://player.vimeo.com/video/46577266?title=0&amp;byline=0&amp;portrait=0" width="1000" height="
+                    562" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
+                </section>
+
+                <section>
+                    <video width="700" height="470" src="http://img832.imageshack.us/img832/2869/u1nrxrakmkyopxxpjmxzmz.mp4" style="-webkit-transform: rotate(90deg)">
+                    </video>
+                </section>
+
+                <!-- END Arduino -->
+
+                <!-- P2P / Visioconference -->
+                <section>
+                    <h2>Visioconference</h2>
+                </section>
+
+                <section id="usermedia">
+                    <video width="600" height="402" autoplay class="usermedia">
+                    </video>
+                </section>
+
+                <section>
+                    <h2>GetUserMedia</h2>
+                    <pre><code>var video = document.querySelector('video.usermedia');
+var localMediaStream = null;
+ if (navigator.getUserMedia) {
+    navigator.getUserMedia('video',
+        function(stream) {
+            video.src = stream;
+            video.controls = true;
+            localMediaStream = stream;
+        },
+        function(){
+            console.log('oops');
+        }
+    );
+ }
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>Démo</h2>
+                    <a href="http://www.soundstep.com/blog/experiments/jsdetection/" target="_blank" title="">Xylophone</a> <br>
+                    <a href="http://vimeo.com/44049736" target="_blank" title="">Headtracking</a>
+                </section>
+
+
+                <section>
+                    <p>WebRTC</p>
+                    <img src="http://1-ps.googleusercontent.com/x/s.html5rocks-hrd.appspot.com/www.html5rocks.com/en/tutorials/webrtc/basics/wjsep.png.pagespeed.ic.tjQXxYdWXa.jpg" alt="">
+                </section>
+
+                <section>
+                    <h2>Code</h2>
+                    <pre><code>var pc1,pc2;
+var localstream;
+var vid1 = document.getElementById("vid1");
+var vid2 = document.getElementById("vid2");
+
+function gotStream(stream){
+  console.log("Received local stream");
+  vid1.src = webkitURL.createObjectURL(stream);
+  localstream = stream;
+}
+
+function start() {
+  console.log("Requesting local stream");
+  navigator.webkitGetUserMedia({audio:true, video:true},
+                               gotStream, function() {});
+}
+
+function call() {
+  console.log("Starting call");
+  if (localstream.videoTracks.length > 0)
+    console.log('Using Video device: ' + localstream.videoTracks[0].label);
+  if (localstream.audioTracks.length > 0)
+    console.log('Using Audio device: ' + localstream.audioTracks[0].label);
+  var servers = null;
+  pc1 = new webkitRTCPeerConnection(servers);
+  console.log("Created local peer connection object pc1");
+  pc1.onicecandidate = iceCallback1;
+  pc2 = new webkitRTCPeerConnection(servers);
+  console.log("Created remote peer connection object pc2");
+  pc2.onicecandidate = iceCallback2;
+  // set the callback for the receiving PeerConnection to display video
+  pc2.onaddstream = gotRemoteStream;
+
+  // add the local stream for the sending PeerConnection
+  pc1.addStream(localstream);
+  console.log("Adding Local Stream to peer connection");
+
+  // create an offer, with the local stream
+  pc1.createOffer(gotDescription1);
+  // create an answer
+  pc2.createAnswer(gotDescription2);
+}
+
+function gotDescription1(desc){
+  // set the offer for the sending and receiving PeerConnection
+  pc1.setLocalDescription(desc);
+  console.log("Offer from pc1 \n" + desc.sdp);
+  pc2.setRemoteDescription(desc);
+}
+
+function gotDescription2(desc){
+  // set it on the sending and receiving PeerConnection
+  pc2.setLocalDescription(desc);
+  console.log("Answer from pc2 \n" + desc.sdp);
+  pc1.setRemoteDescription(desc);
+}
+
+function gotRemoteStream(e){
+  vid2.src = webkitURL.createObjectURL(e.stream);
+  console.log("Received remote stream");
+}
+
+function iceCallback1(event){
+  if (event.candidate) {
+    pc2.addIceCandidate(new RTCIceCandidate(event.candidate));
+    console.log("Local ICE candidate: \n" + event.candidate.candidate);
+  }
+}
+
+function iceCallback2(event){
+  if (event.candidate) {
+    pc1.addIceCandidate(new RTCIceCandidate(event.candidate));
+    console.log("Remote ICE candidate: \n " + event.candidate.candidate);
+  }
+}
+                    </code></pre>
+                </section>
+                <!-- END P2P / Visioconference -->
+
+                <section>
+                    <h2>Aller plus loin</h2>
+                </section>
+
+                <!-- Chrome Web Apps -->
+                <section>
+                    <h2>Chrome Web Apps</h2>
+                </section>
+
+                <section>
+                    <h2>Serial Access</h2>
+                </section>
+
+                <section>
+                    <h2>Serial Access</h2>
+                    <pre><code>const device = '/dev/tty.usbmodem621';
+const serial = chrome.serial;
+const timeout = 100;
+
+var ser = new SerialConnection();
+ser.connect(device, function() {
+  log('connected to: ' + device);
+  ser.write('hello arduino', function() {
+  });
+  readNextLine();
+});
+
+function readNextLine() {
+  ser.readLine(function(line) {
+    log('readline: ' + line);
+    readNextLine();
+  });
+}
+
+var is_on = false;
+document.querySelector('button').addEventListener('click', function() {
+  is_on = !is_on;
+  ser.write(is_on ? 'y' : 'n');
+});</code></pre>
+                </section>
+
+                <section>
+                    <h2>Serial Access</h2>
+
+                    <iframe width="560" height="315" src="http://www.youtube.com/embed/j8oFAr1YR-0?start=940" frameborder="0" allowfullscreen></iframe>
+                </section>
+
+
+                <section>
+                    <h2>USB Access</h2>
+                </section>
+
+                <section>
+                    <h2>USB Access</h2>
+                    <pre><code>var POWERMATE_VENDOR_ID = 0x077d;
+var POWERMATE_PRODUCT_ID = 0x0410;
+
+var powerMateDevice;
+var usb = chrome.experimental.usb;
+
+var amount = 0;
+
+var transfer = {
+  direction: 'in',
+  endpoint: 1,
+  length: 6
+};
+
+var deviceOptions = {
+  onEvent: function(usbEvent) {
+    if (usbEvent.resultCode) {
+      console.log("Error: " + usbEvent.error);
+      return;
+    }
+
+    var buffer = new Int8Array(usbEvent.data);
+    amount += buffer[1] * 4;
+
+    var knob = document.getElementById('knob');
+    knob.style.webkitTransform = 'rotate(' + amount + 'deg)';
+
+    usb.interruptTransfer(
+        powerMateDevice,
+        transfer,
+        function() {
+          console.log('Sent event transfer');
+        });
+  }
+};
+
+usb.findDevice(
+    POWERMATE_VENDOR_ID,
+    POWERMATE_PRODUCT_ID,
+    deviceOptions,
+    function(device) {
+      if (!device) {
+        console.log('device not found');
+        return;
+      }
+      console.log('Found device: ' + device.handle);
+      powerMateDevice = device;
+      usb.interruptTransfer(powerMateDevice, transfer, function() {
+        console.log('Sent initial transfer');
+      });
+    });</code></pre>
+
+                </section>
+
+                <section>
+                    <h2>Network Access</h2>
+                </section>
+
+                <section>
+                    <h2>Network Access - TCP</h2>
+                    <pre><code>chrome.socket.create('tcp', {}, function(createInfo) {
+  socket.connect(createInfo.socketId, IP, PORT,
+                 onConnectedCallback);
+});
+
+chrome.socket.write(socketId, arrayBuffer,
+                    onWriteCompleteCallback);
+
+chrome.socket.read(socketId, null, function(readInfo) {
+  if (readInfo.resultCode > 0) {
+    // readInfo.data is an arrayBuffer.
+  }
+});
+
+chrome.socket.disconnect(socketId);</code></pre>
+
+                </section>
+
+                <section>
+                    <h2>Network Access - UDP </h2>
+                    <pre><code>var handleDataEvent = function(d) {
+  var data = chrome.socket.read(d.socketId);
+  console.log(data);
+};
+
+chrome.socket.create(
+    'udp', '127.0.0.1', 1337,
+    { onEvent: handleDataEvent },
+    function(socketInfo) {
+       var socketId = socketInfo.socketId;
+       chrome.socket.connect(socketId, function(result) {
+         chrome.socket.write(socketId, arrayBuffer,
+           function(sendInfo) {
+             console.log("wrote " + sendInfo.bytesWritten);
+           });
+        });
+    }
+);</code></pre>
+                </section>
+
+                <!-- END Chrome Web Apps -->
+
+				<section>
+					<h1>THE END</h1>
+					<h3>BY Jonathan Blanchet </h3>
+                    <p>
+                        <a href="http://jblanche.fr" title="">jblanche.fr</a> /
+                        <a href="http://twitter.com/jblanchefr" title="">@jblanchefr</a>
+                    </p>
+
+				</section>
+
+
+			</div>
+
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+        <script src="http://localhost:5000/socket.io/socket.io.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+                progress: true,
+				mouseWheel: false,
+				history: true,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/linear(2d)
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/highlight.js', async: true, callback: function() { window.hljs.initHighlightingOnLoad(); } },
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'lib/js/showdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'lib/js/data-markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/zoom-js/zoom.js', condition: function() { return !!document.body.classList; } },
+					{ src: '/socket.io/socket.io.js', async: true, condition: function() { return window.location.host === 'localhost:1947'; } },
+					{ src: 'plugin/speakernotes/client.js', async: true, condition: function() { return window.location.host === 'localhost:1947'; } }
+				]
+			});
+		</script>
+
+        <script>
+            $(function () {
+
+                Reveal.addEventListener( 'slidechanged', function( event ) {
+                    switch(event.currentSlide.id){
+                        case 'rfid':
+                            var socket = io.connect('http://localhost:5000');
+                            socket.on('RFID-in', function (color) {
+                              console.log('RFID-in', color);
+                              document.documentElement.classList.add(color);
+                            });
+                            socket.on('RFID-out', function (color) {
+                              console.log('RFID-out', color);
+                              document.documentElement.classList.remove(color);
+                            });
+                            break;
+                        case 'usermedia':
+                            var video = document.querySelector('video.usermedia');
+                            var localMediaStream = null;
+                            if (navigator.getUserMedia) {
+                                navigator.getUserMedia('video', function(stream) {
+                                    video.src = stream;
+                                    video.controls = true;
+                                    localMediaStream = stream;
+                                    video.classList.add('filter');
+                                    console.log('test');
+                                }, function(){});
+                            } else if (navigator.webkitGetUserMedia) {
+                                navigator.webkitGetUserMedia({video: true}, function(stream) {
+                                    video.src = window.webkitURL.createObjectURL(stream);
+                                    video.controls = true;
+                                    localMediaStream = stream;
+                                    window.stream = stream;
+                                    video.classList.add('filter');
+                                    console.log('test2');
+                                }, function(){});
+                            } else {
+                               console.log('oops');
+                            }
+                            break;
+                        default:
+                            document.querySelector('video.usermedia').pause();
+                            break;
+                    }
+
+                } );
+
+            })
+        </script>
+
+
+	</body>
+</html>

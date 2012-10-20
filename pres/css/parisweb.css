@@ -1,0 +1,94 @@
+body{
+    background-image: url(http://subtlepatterns.com/patterns/snow.png);
+    color: #3F3F3F;
+}
+
+.reveal h1 {
+    text-shadow:    0 1px 0 rgba(0,0,0,.15),
+                    0 2px 0 rgba(0,0,0,.25),
+                    0 3px 0 rgba(0,0,0,.2),
+                    0 4px 0 rgba(0,0,0,.3),
+                    0 5px 0 rgba(0,0,0,.1),
+                    0 0 5px #aaa,
+                    0 1px 3px #b9b9b9,
+                    0 3px 5px #bbb,
+                    0 5px 10px #c9c9c9,
+                    0 20px 20px #ccc;
+}
+
+
+.reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5, .reveal h6 {
+    color: #3F3F3F;
+}
+
+.reveal a:not(.image) {
+    color: rgb(109, 12, 12);
+    text-decoration: none;
+
+    -webkit-transition: color .15s ease;
+       -moz-transition: color .15s ease;
+        -ms-transition: color .15s ease;
+         -o-transition: color .15s ease;
+            transition: color .15s ease;
+}
+    .reveal a:not(.image):hover {
+        color: rgb(109, 12, 12);
+
+        text-shadow: none;
+        border: none;
+        border-radius: 2px;
+    }
+
+.reveal .roll span:after {
+    color: #fff;
+    background: rgb(109, 12, 12);
+}
+
+.reveal .controls a.enabled {
+    color: rgb(109, 12, 12);
+    text-shadow: 0px 0px 2px hsla(185, 45%, 70%, 0.3);
+    opacity: 1;
+}
+
+.reveal .progress span {
+    background: rgb(109, 12, 12);
+}
+
+
+.yellow body{
+    background: #FFDC00;
+    color: black;
+}
+
+.yellow body h2{ color : black;}
+
+.purple body{
+    background: purple;
+}
+.purple body h2{
+    color: white;
+}
+
+.yellow.purple body{
+    background: #856037; /*brown*/
+    color: white;
+}
+
+.yellow.purple body h2{
+    color: white;
+}
+
+.reveal pre code{
+    padding: 0.5em;
+}
+
+.filter{
+    -webkit-filter: blur(10px);
+    -webkit-transition: -webkit-filter 1s;
+
+}
+
+.filter:hover{
+    -webkit-filter: blur(0);
+}
+
