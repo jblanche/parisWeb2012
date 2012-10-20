@@ -10,10 +10,3 @@ Utiliser votre manette de jeu Xbox et PlayStation dans votre navigateur avec la 
 Et bien plus encore...
 
 Cet atelier tentera d'explorer ces nouveaux usages à travers un tour d'horizons de ces nouvelles possibilités accompagnées de quelques démos.
-
-
-Idées : 
-1 détecteur d'ouverture/fermeture de porte + puce RFID sur le parapluie pour nous prévenir si on sort sans le parapluie un jour de pluie. 
-
-gamepad API + io Sockets + arduino fun (quad copter)
-
